@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling>=1.28"]
+build-backend = "hatchling.build"
+
+[project]
+name = "plm-api"
+version = "0.1.0"
+description = "FastAPI service for the PLM migration"
+requires-python = ">=3.12"
+dependencies = [
+  "alembic==1.20.0",
+  "fastapi==0.141.1",
+  "pydantic==2.13.5",
+  "python-dotenv>=1.2.4",
+  "python-multipart>=0.0.20",
+  "sqlalchemy==2.1.1",
+  "uvicorn[standard]==0.54.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "httpx>=0.28.1",
+  "pytest==9.1.1",
+  "ruff>=0.15.0",
+]
+sqlserver = ["pyodbc>=5.3.0"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["plm_api"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

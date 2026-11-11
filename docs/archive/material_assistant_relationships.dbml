@@ -1,0 +1,243 @@
+Project plm_material_relationships {
+  database_type: 'SQLServer'
+  Note: 'Legacy PLM item data, assistant lookup, and current PLM_DEV material/formula-line targets.'
+}
+
+// Paste this file into dbdiagram.io. Dotted [inactive] links are inferred
+// branch + item relationships, NOT foreign keys in production PLM.
+// Solid links at the end are actual PLM_DEV foreign keys.
+// Selected columns are shown; see material_assistant_relationships.md for lineage.
+
+Table dbo.Item_Extension [note: 'PLM item/branch extension. Composite PK; JDE item may exist without this row.'] {
+  EXMCU nvarchar(12) [not null]
+  EXLITM nvarchar(25) [not null]
+  EXSTA nvarchar(64)
+  EXPTNC float
+  EXPTUM nvarchar(4)
+  EXTMRK nvarchar(64)
+  EXALRG nvarchar(10)
+  EXCRON datetime
+  EXCRBY nvarchar(32)
+  EXMDON datetime
+  EXMDBY nvarchar(32)
+
+  indexes {
+    (EXMCU, EXLITM) [pk]
+  }
+}
+
+Table dbo.Item_Regulatory_Requirement [note: 'One declared row per exact branch + item. Only RRPREF feeds the assistant.'] {
+  RRMCU nvarchar(12) [not null]
+  RRLITM nvarchar(25) [not null]
+  RRPREF nvarchar(3)
+  RRGMO nvarchar(32)
+  RRHALA nvarchar(20)
+  RRKOSH nvarchar(10)
+
+  indexes {
+    (RRMCU, RRLITM) [pk]
+  }
+}
+
+Table dbo.Item_Allergen [note: 'Many allergen declarations per branch + item; assistant derives a YES flag.'] {
+  ALIDNT int [pk, increment]
+  ALMCU nvarchar(12) [not null]
+  ALLITM nvarchar(25) [not null]
+  ALALRG nvarchar(64)
+  ALPSNT nvarchar(32)
+}
+
+Table dbo.Item_Country [note: 'Detailed country applicability; not flattened into the assistant.'] {
+  CNIDNT int [pk, increment]
+  CNMCU nvarchar(12) [not null]
+  CNLITM nvarchar(25) [not null]
+  CNCTR nvarchar(64)
+  CNCTRT nvarchar(64)
+}
+
+Table dbo.Item_Property [note: 'Many specification properties per branch + item; not in assistant.'] {
+  IPIDNT int [pk, increment]
+  IPMCU nvarchar(12) [not null]
+  IPLITM nvarchar(25) [not null]
+  IPSPCT nvarchar(64)
+  IPPRPT nvarchar(64)
+  IPRZLT nvarchar(64)
+}
+
+Table dbo.Item_Solvent [note: 'Many solvent components per branch + item; not in assistant.'] {
+  ISIDNT int [pk, increment]
+  ISMCU nvarchar(12) [not null]
+  ISLITM nvarchar(25) [not null]
+  ISSLVT nvarchar(32)
+  ISRTIO nvarchar(12)
+}
+
+Table dbo.Item_Vendor_Part [note: 'Vendor/part rows; assistant flattens vendor names by IVPRNC role.'] {
+  IVIDNT int [pk, increment]
+  IVMCU nvarchar(12) [not null]
+  IVLITM nvarchar(25) [not null]
+  IVVEND int
+  IVVNDN nvarchar(128)
+  IVPRNC nvarchar(64)
+}
+
+Table dbo.Item_JDE_Original [note: 'Dated JDE values; capture path unconfirmed. Not an assistant input.'] {
+  JDMCU nvarchar(12) [not null]
+  JDLITM nvarchar(25) [not null]
+  JDTRDJ bigint [not null]
+  JDDSC3 nvarchar(60)
+  JDSTKT nvarchar(8)
+  JDUOM1 nvarchar(8)
+
+  indexes {
+    (JDMCU, JDLITM, JDTRDJ) [pk]
+  }
+}
+
+Table dbo.Formulation_Assistant [note: 'Nightly branch-10 JDE/PLM lookup projection. No PK; branch + item can repeat. BP05 and BP15 are separate branch-specific copies.'] {
+  IB_branch nvarchar(12)
+  IB_item_number nvarchar(25)
+  EX_branch nvarchar(12)
+  EX_item_number nvarchar(25)
+  prefer nvarchar(3)
+  last_in_cost float
+  last_in_cost_v2 float
+  potency float
+  potency_UOM nvarchar(20)
+  item_status nvarchar(30)
+  stocking_type nvarchar(4)
+  tier_level nvarchar(4)
+  vendor_name nvarchar(60)
+  PLM_Vendor1 nvarchar(60)
+  PLM_Vendor2 nvarchar(60)
+  PLM_Vendor_UNK nvarchar(60)
+  quantity_available float
+  total_last_12_months float
+  trademark nvarchar(64)
+  item_description_1 nvarchar(64)
+  item_description_2 nvarchar(30)
+  Item_Description nvarchar(60)
+  primary_UOM nvarchar(2)
+  purch_UOM nvarchar(2)
+  Category varchar(3)
+  Allergen nvarchar(10)
+}
+
+Table dbo.Formulation_Assistant_BP05 [note: 'Nightly BP05 version of the assistant projection; no PK. Same 26-column shape.'] {
+  IB_branch nvarchar(12)
+  IB_item_number nvarchar(25)
+  EX_branch nvarchar(12)
+  EX_item_number nvarchar(25)
+  last_in_cost_v2 float
+}
+
+Table dbo.Formulation_Assistant_BP15 [note: 'BP15 projection; no scheduled rebuild in the supplied jobs. BP35 procedure also writes here.'] {
+  IB_branch nvarchar(12)
+  IB_item_number nvarchar(25)
+  EX_branch nvarchar(12)
+  EX_item_number nvarchar(25)
+  last_in_cost_v2 float
+}
+
+// PLM_DEV target tables. These three material tables are currently empty.
+Table dbo.material [note: 'New ORM material root in PLM_DEV; absent from production PLM.'] {
+  id int [pk, increment]
+  item_number varchar(40) [not null, unique]
+  description varchar(200) [not null]
+  category varchar(80)
+  base_uom varchar(12) [not null]
+}
+
+Table dbo.material_branch [note: 'New ORM branch attributes.'] {
+  id int [pk, increment]
+  material_id int [not null]
+  branch_code varchar(12) [not null]
+  item_status varchar(30) [not null]
+  unit_cost decimal(18,6) [not null]
+  quantity_available decimal(18,4) [not null]
+
+  indexes {
+    (material_id, branch_code) [unique]
+  }
+}
+
+Table dbo.material_specification [note: 'New ORM specification rows; currently empty.'] {
+  id int [pk, increment]
+  material_id int [not null]
+  branch_code varchar(12) [not null]
+  kind varchar(40) [not null]
+  name varchar(120) [not null]
+  value varchar(240)
+}
+
+Table form.formula [note: 'Stable formula identity in PLM_DEV.'] {
+  id int [pk, increment]
+  record_origin varchar(20) [not null]
+}
+
+Table form.formula_header [note: 'One formula revision in PLM_DEV.'] {
+  id int [pk, increment]
+  formula_id int [not null]
+  branch_code nvarchar(12)
+  parent_item_number nvarchar(64)
+  blend_item_number nvarchar(64)
+  workflow_status nvarchar(32) [not null]
+  revision_number decimal(16,8) [not null]
+}
+
+Table form.formula_line [note: 'Seeded formula ingredient line; all current material_id values are NULL.'] {
+  id int [pk, increment]
+  formula_header_id int [not null]
+  material_id int
+  material_branch_code nvarchar(12)
+  material_item_number nvarchar(25) [not null]
+  material_description nvarchar(60)
+  selected_unit_cost decimal(16,8)
+}
+
+TableGroup legacy_item_tables [note: 'Production PLM tables; no declared FKs between them.', color: #DDEBFA] {
+  dbo.Item_Extension
+  dbo.Item_Regulatory_Requirement
+  dbo.Item_Allergen
+  dbo.Item_Country
+  dbo.Item_Property
+  dbo.Item_Solvent
+  dbo.Item_Vendor_Part
+  dbo.Item_JDE_Original
+}
+
+TableGroup assistant_caches [note: 'Rebuilt lookup projections, not canonical item records.', color: #FDECC8] {
+  dbo.Formulation_Assistant
+  dbo.Formulation_Assistant_BP05
+  dbo.Formulation_Assistant_BP15
+}
+
+TableGroup plm_dev_targets [note: 'Current normalized tables in PLM_DEV.', color: #DCF2DD] {
+  dbo.material
+  dbo.material_branch
+  dbo.material_specification
+  form.formula
+  form.formula_header
+  form.formula_line
+}
+
+// Inferred joins in legacy data; dotted so they are not mistaken for FKs.
+Ref: dbo.Item_Regulatory_Requirement.(RRMCU, RRLITM) >? dbo.Item_Extension.(EXMCU, EXLITM) [inactive]
+Ref: dbo.Item_Allergen.(ALMCU, ALLITM) >? dbo.Item_Extension.(EXMCU, EXLITM) [inactive]
+Ref: dbo.Item_Country.(CNMCU, CNLITM) >? dbo.Item_Extension.(EXMCU, EXLITM) [inactive]
+Ref: dbo.Item_Property.(IPMCU, IPLITM) >? dbo.Item_Extension.(EXMCU, EXLITM) [inactive]
+Ref: dbo.Item_Solvent.(ISMCU, ISLITM) >? dbo.Item_Extension.(EXMCU, EXLITM) [inactive]
+Ref: dbo.Item_Vendor_Part.(IVMCU, IVLITM) >? dbo.Item_Extension.(EXMCU, EXLITM) [inactive]
+Ref: dbo.Item_JDE_Original.(JDMCU, JDLITM) >? dbo.Item_Extension.(EXMCU, EXLITM) [inactive]
+Ref: dbo.Formulation_Assistant.(EX_branch, EX_item_number) >? dbo.Item_Extension.(EXMCU, EXLITM) [inactive]
+Ref: dbo.Formulation_Assistant_BP05.(EX_branch, EX_item_number) >? dbo.Item_Extension.(EXMCU, EXLITM) [inactive]
+Ref: dbo.Formulation_Assistant_BP15.(EX_branch, EX_item_number) >? dbo.Item_Extension.(EXMCU, EXLITM) [inactive]
+Ref: form.formula_line.(material_branch_code, material_item_number) >? dbo.Item_Extension.(EXMCU, EXLITM) [inactive]
+Ref: dbo.material_specification.(material_id, branch_code) >? dbo.material_branch.(material_id, branch_code) [inactive]
+
+// Actual PLM_DEV FKs; solid links.
+Ref: dbo.material_branch.material_id > dbo.material.id
+Ref: dbo.material_specification.material_id > dbo.material.id
+Ref: form.formula_header.formula_id > form.formula.id
+Ref: form.formula_line.formula_header_id > form.formula_header.id
+Ref: form.formula_line.material_id > dbo.material.id
