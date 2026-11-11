@@ -18,7 +18,7 @@ SQLAlchemy entities, relationships, queries, and routes:
 
 ```text
 backend/
-├── plm_api/                       # Importable Python application package
+├── api/                           # Importable Python application package
 │   ├── main.py                    # Application composition root
 │   ├── config.py
 │   ├── database.py                # Engine, session, shared ORM base
@@ -30,7 +30,7 @@ backend/
 │   │   │   └── router.py          # Formula use cases/endpoints
 │   │   ├── materials/
 │   │   ├── specifications/
-│   │   ├── administration/
+│   │   ├── admin/
 │   │   ├── dashboard/
 │   │   ├── audit/
 │   │   └── system/
@@ -43,9 +43,8 @@ backend/
 └── pyproject.toml
 ```
 
-There is deliberately no `src/plm_api` nesting. A Python application still needs one
-package directory so imports have a stable namespace; here that package is directly
-under `backend/plm_api`.
+The importable package is `backend/api`. From the `backend` directory, Python
+imports it as `api`.
 
 The current modules are intentionally small. Keep a module's four basic files together
 until one use case becomes substantial. At that point, move that use case into a named
@@ -61,7 +60,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
 alembic upgrade head
-uvicorn plm_api.main:app --reload --env-file .env
+uvicorn api.main:app --reload --env-file .env
 ```
 
 The API is available at `http://localhost:8000`, with OpenAPI documentation at `http://localhost:8000/docs`.
@@ -98,7 +97,7 @@ surrogate primary keys and composite source-key constraints.
 
 ## Code-first database workflow
 
-SQLAlchemy models under `plm_api/modules/*/models.py` are the source of truth for entities,
+SQLAlchemy models under `api/modules/*/models.py` are the source of truth for entities,
 columns, indexes, constraints, and relationships. Alembic is the Python/SQLAlchemy
 equivalent of EF Core migrations: it compares those models with the current database and
 creates a versioned migration describing the difference.
@@ -144,7 +143,7 @@ available under `docs/archive/`.
 
 ```powershell
 cd backend
-.\.venv\Scripts\python.exe -m ruff check plm_api tests
+.\.venv\Scripts\python.exe -m ruff check api tests
 .\.venv\Scripts\python.exe -m pytest -q
 
 cd ..\frontend
