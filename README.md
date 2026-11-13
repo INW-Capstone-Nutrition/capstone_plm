@@ -58,12 +58,17 @@ feature package inside the module rather than adding more global layers.
 
 ```powershell
 cd backend
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -e ".[dev]"
-alembic upgrade head
-uvicorn api.main:app --reload --env-file .env
+uv sync --locked --extra dev --extra sqlserver
+uv run --locked --extra dev --extra sqlserver alembic current
+uv run --locked --extra dev --extra sqlserver uvicorn api.main:app --reload
 ```
+
+These commands use the existing `PLM_DEV` SQL Server database configured in
+`backend/.env`. `uv sync` creates `.venv` and installs the locked packages; no
+manual activation or pip install is needed. `alembic current` reads migration
+state without modifying the database. Run `alembic upgrade head` only as a
+deliberate schema deployment, or when setting up a new, empty database. See the
+[build and deployment handoff](docs/deployment_handoff.md) for that procedure.
 
 The API is available at `http://localhost:8000`, with OpenAPI documentation at `http://localhost:8000/docs`.
 
@@ -71,7 +76,7 @@ The API is available at `http://localhost:8000`, with OpenAPI documentation at `
 
 ```powershell
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
@@ -79,14 +84,11 @@ Open `http://localhost:5173`. Vite proxies `/api` to the backend.
 
 ## Database configuration
 
-Development uses `sqlite:///./plm_dev.db`. Copy `backend/.env.example` values into your environment to change the connection. For SQL Server, install the optional driver dependencies and provide a `mssql+pyodbc` URL:
-
-```powershell
-pip install -e ".[dev,sqlserver]"
-$env:PLM_DATABASE_URL = "mssql+pyodbc://..."
-$env:PLM_AUTO_CREATE_SCHEMA = "false"
-alembic upgrade head
-```
+The local `backend/.env` selects the existing `PLM_DEV` SQL Server database.
+The `sqlserver` uv extra installs `pyodbc`; the machine also needs Microsoft
+ODBC Driver 18. Without database settings, the code falls back to
+`sqlite:///./plm_dev.db`. Copy `backend/.env.example` only when configuring a
+new environment, then set the target database details explicitly.
 
 The API performs a read-only `SELECT 1` during startup so invalid SQL Server networking or credentials fail immediately. Database schema changes are applied deliberately with Alembic. Automatic `create_all()` behavior is disabled by default.
 
@@ -108,34 +110,36 @@ SQL Server should still enforce the resulting primary keys, foreign keys, unique
 constraints, and column types. Those objects are authored in Python and applied through
 migrations rather than maintained manually in SQL Server.
 
-From the `backend` directory:
+From the `backend` directory. Generate and test new migrations against an
+isolated development database before applying them to shared `PLM_DEV`:
 
 ```powershell
-# Apply every existing migration (EF Core: Update-Database)
-.\.venv\Scripts\alembic.exe upgrade head
+# Inspect the existing database's migration revision (read only)
+uv run --locked --extra dev --extra sqlserver alembic current
 
 # After changing a module's models.py, generate a migration
 # (EF Core: Add-Migration <name>)
-.\.venv\Scripts\alembic.exe revision --autogenerate -m "describe the model change"
+uv run --locked --extra dev --extra sqlserver alembic revision --autogenerate -m "describe the model change"
 
-# Review the generated file under alembic/versions, then apply it
-.\.venv\Scripts\alembic.exe upgrade head
+# Review the generated file under alembic/versions, then apply it deliberately
+uv run --locked --extra dev --extra sqlserver alembic upgrade head
 
 # Confirm the database matches the code model
-.\.venv\Scripts\alembic.exe check
+uv run --locked --extra dev --extra sqlserver alembic check
 
 # Inspect migration state and history
-.\.venv\Scripts\alembic.exe current
-.\.venv\Scripts\alembic.exe history
+uv run --locked --extra dev --extra sqlserver alembic heads
+uv run --locked --extra dev --extra sqlserver alembic history
 
-# Roll back one migration during local development
-.\.venv\Scripts\alembic.exe downgrade -1
+# Roll back one migration only in an isolated development database
+uv run --locked --extra dev --extra sqlserver alembic downgrade -1
 ```
 
-For a new environment, configure `PLM_DATABASE_URL` or the `PLM_DB_*` settings, keep
-`PLM_AUTO_CREATE_SCHEMA=false`, and run `alembic upgrade head`. `create_all()` remains
-available only as a convenience for disposable SQLite development databases; migrations
-are the supported path for SQL Server.
+For a new environment, create the SQL Server database first, configure
+`PLM_DATABASE_URL` or the `PLM_DB_*` settings, keep
+`PLM_AUTO_CREATE_SCHEMA=false`, then run `alembic upgrade head` to create the
+application schema. Do not run that command routinely against the existing
+`PLM_DEV` database. See the handoff for the full procedure.
 
 The current ERD and source mappings are indexed in
 [`docs/README.md`](docs/README.md). Historical view plans and diagnostics are
@@ -145,8 +149,8 @@ available under `docs/archive/`.
 
 ```powershell
 cd backend
-.\.venv\Scripts\python.exe -m ruff check api tests
-.\.venv\Scripts\python.exe -m pytest -q
+uv run --locked --extra dev --extra sqlserver ruff check api tests
+uv run --locked --extra dev --extra sqlserver pytest -q
 
 cd ..\frontend
 npm run lint
