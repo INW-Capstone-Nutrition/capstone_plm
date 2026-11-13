@@ -1,5 +1,7 @@
 # Foundry PLM migration starter
 
+For reproducible setup, locked package versions, container considerations, and a record of pip versus uv usage, see the [build and deployment handoff](docs/deployment_handoff.md).
+
 A working FastAPI + React starter mapped from the supplied PowerBuilder migration assessment. The project separates the frontend and backend while keeping the domain in a deployable modular monolith.
 
 ## What is included
